@@ -3,6 +3,7 @@
 
 <script>
 export default {
-  name: 'IndexPage'
+  name: 'IndexPage',
+  middleware: 'auth',
 }
 </script>
