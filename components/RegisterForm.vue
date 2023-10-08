@@ -1,6 +1,7 @@
 <template>
   <form
     @submit.prevent="handleRegister"
+    ref="registerForm"
     class="space-y-4 md:space-y-6 mt-6">
     <!-- Form Fields -->
     <div>
@@ -29,13 +30,12 @@
         class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
         Contact Number:
       </label>
-      <input
+      <VuePhoneNumberInput
         v-model="newCustomer.phone_number"
-        type="text"
-        placeholder="0435467917"
-        maxlength="11"
-        class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-      />
+        default-country-code="AU"
+        :show-code-on-list="true"
+        :required="true"
+        @update="handleChangeFormatNumber"/>
     </div>
 
     <div>
@@ -139,8 +139,8 @@
     <div class="block my-4">
       <span
         class="text-red-500 text-base mt-4"
-        v-if="errors.length">
-        {{errors}}
+        v-if="errorMsg.length">
+        {{errorMsg}}
       </span>
     </div>
 
@@ -164,11 +164,17 @@
 
 <script>
 import { mapActions } from 'vuex';
+import VuePhoneNumberInput from 'vue-phone-number-input';
+import 'vue-phone-number-input/dist/vue-phone-number-input.css';
 
 let emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/; // validation of email regex
 
 export default {
   name: 'RegisterForm',
+  components: {
+    VuePhoneNumberInput,
+  },
+
   data() {
     return {
       newCustomer: {
@@ -186,10 +192,16 @@ export default {
         usernameValid: true,
         passwordValid: true,
       },
-      errors: '',
-
+      formattedPhoneNumber: '',
+      errorMsg: '',
     }
   },
+
+  /* Events */
+  mounted() {
+    this.$refs.registerForm.reset();
+  },
+
   computed: {
     isPasswordMatched() {
       return this.newCustomer.password === this.confirmPassword;
@@ -198,6 +210,7 @@ export default {
       return this.newCustomer.email.length && this.newCustomer.email.match(emailRegex);
     }
   },
+
   methods: {
     /* Dispatchers */
     ...mapActions(['register']),
@@ -217,6 +230,10 @@ export default {
     },
 
     /* Handlers */
+    handleChangeFormatNumber(e) {
+      this.formattedPhoneNumber = e.formattedNumber
+    },
+
     async handleRegister(evt) {
       evt.preventDefault();
       try {
@@ -226,26 +243,28 @@ export default {
         this.validatePassword();
 
         if(this.validFormFields.nameValid && this.validFormFields.usernameValid && this.validFormFields.passwordValid) {
-          const newCustomerRequest = await this.register(this.newCustomer);
+          const formData = Object.assign(this.newCustomer, {
+            phone_number: this.formattedPhoneNumber,
+          });
+
+          const newCustomerRequest = await this.register(formData);
 
           if(newCustomerRequest) {
             // Redirect to log-in page after successful registration
-            this.handleRegisterSuccess(newCustomerRequest)
+            this.handleRegisterSuccess(formData.email)
           }
+
         }
 
       } catch (error) {
         // Handle registration error
         console.error(error);
+        this.errorMsg = error.toString();
       }
     },
-    handleRegisterSuccess(response) {
-      console.log(response)
-
-      const { userConfirmed, user } = response;
-      this.$router.push({ name: 'login', params: {
-          username: user.username,
-          confirmed: userConfirmed,
+    handleRegisterSuccess(email) {
+      this.$router.push({ path: '/verify-email', query: {
+          email,
         }
       });
     },
