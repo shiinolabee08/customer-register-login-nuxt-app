@@ -5,7 +5,9 @@
     </h1>
     <LoginForm />
 
-    <SuccessModal @hide="hideSuccessModal"/>
+    <SuccessModal
+      v-bind:show="enableSuccessModal"
+      @hide="hideSuccessModal"/>
   </div>
 </template>
 <script>
@@ -14,10 +16,6 @@ import SuccessModal from '../components/SuccessModal.vue';
 
 export default {
   name: 'LoginPage',
-  props: {
-    username: String,
-    confirmed: Boolean,
-  },
   components: {
     LoginForm,
     SuccessModal,
@@ -29,18 +27,14 @@ export default {
     }
   },
   mounted() {
-    if(this.props.username && this.props.confirmed) {
+    const { username, confirmed } = this.$route.params;
+    if(username && confirmed) {
       this.enableSuccessModal = true;
     }
   },
   methods: {
     hideSuccessModal() {
-      enableSuccessModal = false;
-    }
-  },
-  computed: {
-    hasSuccessfulRegistered() {
-      return this.props.username && this.props.confirmed;
+      this.enableSuccessModal = false;
     }
   },
 }

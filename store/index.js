@@ -13,48 +13,74 @@ export const mutations = {
   setUser(state, user) {
     state.user = user;
   },
+  setUserSessionLocalStorage(state) {
+    localStorage.setItem('user', state.user)
+  },
   clearUser(state) {
     state.user = null
+  },
+  clearLocalStorage() {
+    localStorage.removeItem('user');
+    localStorage.clear();
   }
 }
 
 export const getters = {
-  isUserAuthenticated({ state, getters }) {
-    return state.authenticated && getters.authenticatedUser();
+  authenticatedUser(state) {
+    return state.user;
   },
-  authenticatedUser() {
-    return Auth.currentAuthenticatedUser();
+  getUserSessionLocalStorage() {
+    return localStorage.getItem('user');
   }
 }
 
 export const actions = {
-  async login({ commit }, { username, password }) {
+  setUserSession({ commit }, user) {
+    commit('setUser', user);
+    commit('setUserSessionLocalStorage');
+    commit('setUserAuthenticated', true);
+  },
+
+  async login({ dispatch }, { username, password }) {
     try {
-
       // make api request to AWS Amplify Auth.signIn
-      const user = await Auth.signIn(username, password);
-      commit('setUser', user);
-      commit('setUserAuthenticated', true);
+      const response = await Auth.signIn(username, password);
+      if(response) {
+        dispatch('setUserSession', response);
+      }
 
-      return user;
+      return response;
     } catch(error) {
-      console.error('Error signing in:', error);
-      throw new Error(`Error logging in due to ${error}`);
+      console.error('Error signing in:', error.message);
+      throw new Error(`Error logging in due to ${error.message}`, { cause: error.name });
+    }
+  },
+
+  async logout({ commit }) {
+    try {
+      console.info('Signing out session...');
+      const response = await Auth.signOut();
+
+      commit('setUserAuthenticated', false);
+      commit('clearUser');
+      commit('clearLocalStorage');
+
+      return response;
+    } catch(error) {
+      throw new Error(`Error logging out due to ${error.message}`, { cause: error.name });
     }
   },
 
   async register({ commit }, formData) {
     try {
       // make api request to AWS Amplify Auth.signUp
-      const { username, password, email, phone_number: phonenumber, full_name: name, address } = formData;
-
-      console.log(formData);
+      const { username, password, email, phone_number, full_name: name, address } = formData;
       const response = await Auth.signUp({
         username,
         password,
         attributes: {
           email,
-          phonenumber,
+          phone_number,
           name,
           address
         },
@@ -69,7 +95,26 @@ export const actions = {
       return response;
 
     } catch(error) {
-      console.error('Error signing up: ', error);
+      console.error('Error signing up: ', error.message);
+      throw new Error(`Error in signing up due to ${error.message}`, { cause: error.name });
+    }
+  },
+
+  confirmRegisteredUser(_, { email, code }) {
+    try {
+      return Auth.confirmSignUp(email, code);
+    } catch(error) {
+      console.error('Error confirming code: ', error.message);
+      throw new Error(`Error in confirming code due to ${error.message}`, { cause: error.name });
+    }
+  },
+
+  resendVerificationCode(_, { email }) {
+    try {
+      return Auth.resendSignUp(email);
+    } catch(error) {
+      console.error(error.message);
+      throw new Error(`Error in re-sending confirmation code to this email ${email} due to ${error.message}`, { cause: error.name });
     }
   }
 }

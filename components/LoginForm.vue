@@ -30,6 +30,13 @@
         class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
         required="">
     </div>
+    <div class="block my-4">
+      <span
+        class="text-red-500 text-base mt-4"
+        v-if="errorMsg.length">
+        {{errorMsg}}
+      </span>
+    </div>
     <button
       type="submit"
       class="w-full text-white bg-[#2c66bb] hover:bg-primary-300 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800">
@@ -48,6 +55,7 @@
 </template>
 <script>
 import { mapActions } from 'vuex';
+/* import AWSCognitoAuthErrorException from '../utils/aws-cognito-auth-error.enum'; */
 
 export default {
   name: 'LoginForm',
@@ -56,7 +64,7 @@ export default {
       username: '',
       password: '',
       loginAttempts: 0,
-      errors: '',
+      errorMsg: '',
     }
   },
 
@@ -66,21 +74,28 @@ export default {
 
     /* Handlers */
     async handleLogin() {
+      const { username, password } = this;
+
       try {
-        const { username, password } = this;
-        const response = await this.login({ username, password });
+        await this.login({ username, password });
 
-        this.handleSuccessRedirect(response);
-
+        this.handleSuccessRedirect();
       } catch(error) {
         this.loginAttempts++;
-        console.error('Error login attempt: ', error);
-        this.errors = error;
+        this.errorMsg = error.toString();
+
+        if(error.cause && error.cause == 'UserNotConfirmedException'/* AWSCognitoAuthErrorException.USER_NOT_CONFIRMED */) {
+          // #TODO - NOTE temporarily set condition since ts is disabled AWSCognitoAuthErrorException.USER_NOT_CONFIRMED == UserNotConfirmedException
+          this.$router.push({ path: '/verify-email', query: {
+              email: username,
+            }
+          });
+        }
       }
     },
 
-    handleSuccessRedirect(response) {
-      this.$redirect(`/?success=${response}`);
+    handleSuccessRedirect() {
+      this.$router.push('/');
     }
   }
 }
