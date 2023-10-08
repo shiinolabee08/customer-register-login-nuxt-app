@@ -35,8 +35,8 @@ export const getters = {
 }
 
 export const actions = {
-  setUserSession({ commit }, user) {
-    commit('setUser', user);
+  setUserSession({ commit }) {
+    commit('setUser', Auth.user);
     commit('setUserSessionLocalStorage');
     commit('setUserAuthenticated', true);
   },
@@ -44,12 +44,10 @@ export const actions = {
   async login({ dispatch }, { username, password }) {
     try {
       // make api request to AWS Amplify Auth.signIn
-      const response = await Auth.signIn(username, password);
-      if(response) {
-        dispatch('setUserSession', response);
-      }
+      await Auth.signIn(username, password);
 
-      return response;
+      dispatch('setUserSession');
+
     } catch(error) {
       console.error('Error signing in:', error.message);
       throw new Error(`Error logging in due to ${error.message}`, { cause: error.name });
@@ -58,7 +56,7 @@ export const actions = {
 
   async logout({ commit }) {
     try {
-      console.info('Signing out session...');
+      // make api request to AWS Amplify Auth.signOut
       const response = await Auth.signOut();
 
       commit('setUserAuthenticated', false);
@@ -93,7 +91,6 @@ export const actions = {
       }
 
       return response;
-
     } catch(error) {
       console.error('Error signing up: ', error.message);
       throw new Error(`Error in signing up due to ${error.message}`, { cause: error.name });
@@ -102,6 +99,7 @@ export const actions = {
 
   confirmRegisteredUser(_, { email, code }) {
     try {
+      // make api request to AWS Amplify Auth.confirmSignUp
       return Auth.confirmSignUp(email, code);
     } catch(error) {
       console.error('Error confirming code: ', error.message);
@@ -111,6 +109,7 @@ export const actions = {
 
   resendVerificationCode(_, { email }) {
     try {
+      // make api request to AWS Amplify Auth.resendSignUp
       return Auth.resendSignUp(email);
     } catch(error) {
       console.error(error.message);
